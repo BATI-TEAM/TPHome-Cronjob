@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 
 const urlsToVisit = [
-    'https://tphomevn.com/gia-gach-op-lat-moi-nhat-2025-gia-gach',
+    'https://tphomevn.com/gia-gach-op-lat',
     'https://tphomevn.com/chinh-sach-bao-mat',
     'https://tphomevn.com/refund_returns',
     'https://tphomevn.com/cua-hang',
