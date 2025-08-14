@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 
 const urlsToVisit = [
   'https://tphomevn.com/gia-gach-op-lat',
-  'https://tphomevn.com/chuong-trinh-khuyen-mai-dai-le-quoc-khanh-tphome/',
+  'https://tphomevn.com/chuong-trinh-khuyen-mai-dai-le-quoc-khanh-2025/',
   'https://tphomevn.com/chinh-sach-bao-mat',
   'https://tphomevn.com/refund_returns',
   'https://tphomevn.com/cua-hang',
