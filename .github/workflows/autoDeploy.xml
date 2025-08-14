@@ -21,4 +21,6 @@ jobs:
             git fetch origin
             git checkout ${{ github.ref_name }}
             git pull
+            echo "Install new dependencies"
+            npm install
             echo "🐳 Re-run cron-job"
