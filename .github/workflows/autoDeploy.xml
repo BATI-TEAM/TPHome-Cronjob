@@ -1,0 +1,24 @@
+name: Cron-job Deployment
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Using SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: 22
+          script: |
+            cd ~/TPHome-Cronjob
+            git fetch origin
+            git checkout ${{ github.ref_name }}
+            git pull
+            echo "🐳 Re-run cron-job"
