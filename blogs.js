@@ -117,7 +117,7 @@ async function crawlTphomevnTask() {
   console.log('🚀 Bắt đầu crawl tphomevn...');
 
   try {
-    const browser = await chromium.launch({ headless: false });
+    const browser = await chromium.launch({ headless: true });
     let page = await browser.newPage(); // <-- dùng let để gán lại
 
     for (const startUrl of urlsToVisit) {
