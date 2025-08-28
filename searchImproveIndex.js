@@ -6,7 +6,14 @@ let isRunning = false;
 const keywords = [
   'gạch ốp lát đồng nai',
   'gạch nội thất đồng nai',
-  'gạch ốp viền'
+  'gạch ốp viền',
+  'gạch ốp lát giá rẻ',
+  'gạch sale',
+  'gạch ấn độ đồng nai',
+  'gạch ốp rẻ đồng nai',
+  'gạch ấn độ giá rẻ',
+  'gạch rẻ đồng nai',
+  'gạch rẻ trảng bom'
 ];
 
 async function handleTphomevnPage(activePage, startUrl) {
