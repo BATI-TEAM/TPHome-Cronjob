@@ -43,7 +43,7 @@ async function crawlTphomevnTask() {
   try {
     // Khởi chạy trình duyệt với tùy chọn bỏ qua lỗi HTTPS
     const browser = await chromium.launch({ 
-      headless: false,
+      headless: true,
       ignoreHTTPSErrors: true // Bỏ qua lỗi chứng chỉ SSL
     });
     const context = await browser.newContext({
