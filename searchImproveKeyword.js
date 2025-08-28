@@ -20,6 +20,7 @@ const keywords = [
   'gạch viền 7x60',
   'gạch len',
   'gạch mosaic que đũa',
+  'gạch trang trí 25x50',
   'gạch terrazzo 30x60',
   'gạch stile',
   'gạch siêu mỏng',

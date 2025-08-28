@@ -14,6 +14,7 @@ const keywords = [
   'gạch 100x100 trắng',
   'gạch 40x60',
   'gạch viền 7x60',
+  'gạch trang trí 25x50',
   'gạch len',
   'gạch mosaic que đũa',
   'gạch terrazzo 30x60',
@@ -147,7 +148,7 @@ async function runGoogleSearchAndNavigate() {
               const href = await resultLinks[i].getAttribute('href').catch(() => null);
               if (href && href.includes('tphomevn.com')) {
                 const position = i + 1 + (pageNumber - 1) * 10;
-                console.log(`Tìm thấy từ khóa: "${keyword}" của tphomevn.com ở vị trí thứ ${position} (trang ${pageNumber})`);
+                console.log(`🎉 Tìm thấy từ khóa: "${keyword}" của tphomevn.com ở vị trí thứ ${position} (trang ${pageNumber})`);
                 const { page: sitePage, isPopup } = await H.safeClick(page, resultLinks[i], 15000);
                 console.log(`👉 Đã mở kết quả: ${sitePage.url()}`);
 
