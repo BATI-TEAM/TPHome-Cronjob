@@ -4,11 +4,11 @@ const H = require('./helpers');
 let isRunning = false;
 
 const keywords = [
+  'gạch ốp lát giá rẻ',
   'giá gạch ốp lát tphome',
   'tphome giá gạch',
   'gia gach tphome',
   'giá gạch 40x40',
-  'gạch ốp lát giá rẻ'
 ];
 
 async function handleTphomevnPage(activePage, startUrl) {

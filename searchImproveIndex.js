@@ -9,11 +9,19 @@ const keywords = [
   'gạch ốp viền',
   'gạch ốp lát giá rẻ',
   'gạch sale',
+  'gạch ấn độ 60x120',
+  'gạch 40x40',
+  'gạch 100x100 trắng',
+  'gạch 40x60',
+  'gạch viền 7x60',
+  'gạch len',
+  'gạch mosaic que đũa',
+  'gạch terrazzo 30x60',
   'gạch ấn độ đồng nai',
   'gạch ốp rẻ đồng nai',
   'gạch ấn độ giá rẻ',
   'gạch rẻ đồng nai',
-  'gạch rẻ trảng bom'
+  'gạch rẻ trảng bom',
 ];
 
 async function handleTphomevnPage(activePage, startUrl) {
@@ -115,7 +123,7 @@ async function runGoogleSearchAndNavigate() {
           // Gửi tìm kiếm
           await Promise.all([
             page.keyboard.press('Enter'),
-            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {})
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => { })
           ]);
 
           // Kiểm tra chặn của Google
@@ -130,7 +138,7 @@ async function runGoogleSearchAndNavigate() {
 
           while (!found) {
             // Chờ kết quả tìm kiếm tải
-            await page.waitForSelector('div#search', { timeout: 10000 }).catch(() => {});
+            await page.waitForSelector('div#search', { timeout: 10000 }).catch(() => { });
             const resultLinks = await page
               .locator('div#search a:has(h3):not([href*="aclk"]):not([href*="googleadservices"])')
               .all();
@@ -146,7 +154,7 @@ async function runGoogleSearchAndNavigate() {
                 // Xử lý trang tphomevn.com
                 page = await handleTphomevnPage(sitePage, sitePage.url());
 
-                if (isPopup) await sitePage.close().catch(() => {});
+                if (isPopup) await sitePage.close().catch(() => { });
                 found = true;
                 break;
               }
@@ -159,7 +167,7 @@ async function runGoogleSearchAndNavigate() {
                 pageNumber++;
                 await Promise.all([
                   nextBtn.click(),
-                  page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
+                  page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => { })
                 ]);
                 await page.waitForTimeout(2000);
 
@@ -192,7 +200,7 @@ async function runGoogleSearchAndNavigate() {
   } catch (err) {
     console.error('💥 Lỗi nghiêm trọng (ngoài vòng):', err);
   } finally {
-    if (browser) await browser.close().catch(() => {});
+    if (browser) await browser.close().catch(() => { });
     isRunning = false;
   }
 }
