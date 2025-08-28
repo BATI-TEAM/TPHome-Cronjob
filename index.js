@@ -1,17 +1,17 @@
 const { chromium } = require('playwright');
 const H = require('./helpers');
 
-let isRunning = false; // biến cờ kiểm tra
+let isRunning = false; // Cờ kiểm tra tác vụ đang chạy
 
-// Crawl trang tphomevn
+// Thu thập dữ liệu trang tphomevn
 async function handleTphomevnPage(page, url, visited) {
-  console.log(`🌐 Tới trang: ${url}`);
+  console.log(`🌐 Truy cập trang: ${url}`);
 
   if (!page.url().includes('tphomevn.com')) {
     page = await H.clickLinkByUrl(page, url);
   }
 
-  await page.waitForTimeout(10000); // đợi trang load
+  await page.waitForTimeout(10000); // Chờ trang tải
 
   const links = await H.getInternalTphomevnLinks(page, url);
 
@@ -19,18 +19,18 @@ async function handleTphomevnPage(page, url, visited) {
     if (visited.has(link)) continue;
     visited.add(link);
 
-    console.log(`🔗 Click vào: ${link}`);
+    console.log(`🔗 Nhấn vào: ${link}`);
     page = await H.clickLinkByUrl(page, link);
 
-    // Đệ quy crawl link con
+    // Thu thập đệ quy các liên kết con
     await handleTphomevnPage(page, link, visited);
 
-    // Quay về trang chủ
+    // Quay lại trang chủ
     page = await H.clickLinkByUrl(page, 'https://tphomevn.com');
   }
 }
 
-// Main function sử dụng isRunning
+// Hàm chính với xử lý lỗi HTTPS
 async function crawlTphomevnTask() {
   if (isRunning) {
     console.log('⏳ Tác vụ đang chạy, bỏ qua lần này.');
@@ -38,26 +38,33 @@ async function crawlTphomevnTask() {
   }
 
   isRunning = true;
-  console.log('🚀 Bắt đầu crawl tphomevn...');
+  console.log('🚀 Bắt đầu thu thập tphomevn...');
 
   try {
-    const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
+    // Khởi chạy trình duyệt với tùy chọn bỏ qua lỗi HTTPS
+    const browser = await chromium.launch({ 
+      headless: false,
+      ignoreHTTPSErrors: true // Bỏ qua lỗi chứng chỉ SSL
+    });
+    const context = await browser.newContext({
+      ignoreHTTPSErrors: true // Cũng đặt ở cấp context
+    });
+    const page = await context.newPage();
     const startUrl = 'https://tphomevn.com/';
     const visited = new Set();
 
     await handleTphomevnPage(page, startUrl, visited);
 
-    console.log('✅ Hoàn tất crawl tất cả link nội bộ tphomevn.');
+    console.log('✅ Hoàn tất thu thập tất cả liên kết nội bộ tphomevn.');
     await browser.close();
   } catch (err) {
-    console.error('❌ Lỗi crawl:', err);
+    console.error('❌ Lỗi thu thập:', err);
   } finally {
-    isRunning = false; // reset cờ khi xong
+    isRunning = false; // Đặt lại cờ khi hoàn tất
   }
 }
 
-// --- Giả lập cron job bằng setInterval (30 phút) ---
+// Giả lập cron job với setInterval (30 phút)
 setInterval(crawlTphomevnTask, 30 * 60 * 1000);
 
 // Chạy ngay lần đầu
