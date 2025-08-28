@@ -7,7 +7,8 @@ const keywords = [
   'giá gạch ốp lát tphome',
   'tphome giá gạch',
   'gia gach tphome',
-  'giá gạch 40x40'
+  'giá gạch 40x40',
+  'gạch ốp lát giá rẻ'
 ];
 
 async function handleTphomevnPage(activePage, startUrl) {
