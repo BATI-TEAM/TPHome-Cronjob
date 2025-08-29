@@ -7,6 +7,8 @@ let isRunning = false;
 const urlsToVisit = [
   'https://tphomevn.com/nghi-le-quoc-khanh-2-9-nam-2025-lich-nghi-chi-tiet',
   'https://tphomevn.com/lich-nghi-le-quoc-khanh-2025-ke-hoach-chi-tiet',
+  'https://tphomevn.com/lua-chon-noi-that-tphome-cho-ngoi-nha-cua-ban/',
+  'https://tphomevn.com/tphome-giai-phap-noi-that-hien-dai-cho-gia-dinh/',
   'https://tphomevn.com/ky-nghi-le-2-9-202',
   'https://tphomevn.com/5-mau-tranh-phong-thuy-dinh-da-dep-nhat-tai-tp-home',
   'https://tphomevn.com/tranh-phong-thuy-dep-sang-trong-y-nghia-theo-menh',
@@ -31,7 +33,7 @@ async function crawlTphomevnTask() {
 
   try {
     // Khởi chạy trình duyệt với tùy chọn bỏ qua lỗi HTTPS
-    const browser = await chromium.launch({ 
+    const browser = await chromium.launch({
       headless: true,
       ignoreHTTPSErrors: true // Bỏ qua lỗi chứng chỉ SSL
     });
@@ -46,7 +48,7 @@ async function crawlTphomevnTask() {
 
       // Thời gian dừng ngẫu nhiên 15–20s
       const timePerPage = H.getRandomInt(15000, 20000);
-      console.log(`⏱ Dừng trên trang chính: ${timePerPage/1000}s`);
+      console.log(`⏱ Dừng trên trang chính: ${timePerPage / 1000}s`);
       await page.waitForTimeout(timePerPage);
 
       // Lấy tất cả link nội bộ và random 2–3 link để click
@@ -58,7 +60,7 @@ async function crawlTphomevnTask() {
         page = await H.clickLinkByUrl(page, link);
 
         const waitTime = H.getRandomInt(10000, 20000);
-        console.log(`⏱ Dừng sau click: ${waitTime/1000}s`);
+        console.log(`⏱ Dừng sau click: ${waitTime / 1000}s`);
         await page.waitForTimeout(waitTime);
       }
     }
