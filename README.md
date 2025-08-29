@@ -1,10 +1,44 @@
 # Hướng dẫn chạy các script (Node.js + Playwright)
 
-Tài liệu này hướng dẫn cài đặt và chạy các script trong thư mục dự án bằng nodemon. Lưu ý các file sau KHÔNG được hướng dẫn trong tài liệu này theo yêu cầu: `searchSiteTPHome.js`, `searchTPHome.js`, `temp.js`, `test.js`.
+Tài liệu này hướng dẫn cài đặt và chạy các script trong thư mục dự án bằng nodemon.
 
 ## 1) Yêu cầu
 - Node.js 18+ và npm
 - Hệ điều hành có thể chạy Playwright (Windows / macOS / Linux)
+
+## 1.1) Hướng dẫn cài Node.js
+Khuyến nghị dùng bản LTS (ổn định). Có 2 cách phổ biến:
+- Cài trực tiếp từ trang chủ
+  1) Truy cập https://nodejs.org/ và tải bản LTS cho hệ điều hành của bạn (Windows/macOS).
+  2) Chạy bộ cài và làm theo hướng dẫn mặc định.
+  3) Kiểm tra sau khi cài:
+     ```bash
+     node -v
+     npm -v
+     ```
+
+- Dùng trình quản lý phiên bản Node (nên dùng cho nhà phát triển)
+  - Trên macOS/Linux với nvm:
+    ```bash
+    # Cài nvm (tham khảo tài liệu chính thức: https://github.com/nvm-sh/nvm)
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    # Khởi động lại terminal hoặc source shell profile, rồi cài Node LTS
+    nvm install --lts
+    nvm use --lts
+    node -v
+    npm -v
+    ```
+  - Trên Windows với nvm-windows:
+    1) Tải trình cài đặt từ: https://github.com/coreybutler/nvm-windows/releases
+    2) Cài đặt nvm-windows, sau đó mở terminal và chạy:
+       ```bash
+       nvm install lts
+       nvm use lts
+       node -v
+       npm -v
+       ```
+
+Lưu ý: đảm bảo lệnh `node` và `npm` chạy được trong terminal trước khi tiếp tục.
 
 ## 2) Cài đặt
 ```bash
