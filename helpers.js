@@ -281,6 +281,96 @@ async function humanize(page) {
   } catch {}
 }
 
+/**
+ * Click vào liên kết và lấy lại danh sách liên kết mới từ trang đích, chỉ click vào liên kết chưa được xử lý.
+ * @param {import('playwright').Page} page - Trang Playwright hiện tại
+ * @param {string} url - URL mục tiêu để click
+ * @param {Set<string>} visitedLinks - Set chứa các liên kết đã click
+ * @param {string[]} candidates - Danh sách URL dự phòng
+ * @param {Object} options - Tùy chọn cho getInternalLinks
+ * @param {number} timeout - Thời gian chờ
+ * @param {number} maxDepth - Độ sâu tối đa của việc crawl
+ * @returns {Promise<{ page: import('playwright').Page, newLinks: string[] }>} - Trang đích và danh sách liên kết mới
+ */
+async function clickAndCrawlNewLinks(page, url, visitedLinks = new Set(), candidates = [], options = {}, timeout = 15000, maxDepth = 5) {
+  try {
+    // Kiểm tra nếu đã đạt độ sâu tối đa
+    if (visitedLinks.size >= maxDepth) {
+      console.log('⚠ Đạt độ sâu tối đa, dừng crawl.');
+      return { page, newLinks: [] };
+    }
+
+    // Thêm URL hiện tại vào danh sách đã truy cập
+    visitedLinks.add(url);
+
+    // Click vào liên kết và chuyển đến trang đích
+    const targetPage = await clickLinkByUrl(page, url, candidates, timeout);
+
+    // Chờ trang tải xong
+    await targetPage.waitForLoadState('domcontentloaded', { timeout }).catch(() => {});
+
+    // Kiểm tra nếu bị Google block
+    if (await isGoogleBlocked(targetPage)) {
+      console.log('⚠ Trang bị Google block, không thể lấy liên kết.');
+      return { page: targetPage, newLinks: [] };
+    }
+
+    // Mô phỏng thao tác người dùng để giảm dấu vết bot
+    await humanize(targetPage);
+
+    // Lấy danh sách liên kết khả dụng từ trang đích
+    const links = await getInternalLinks(targetPage, {
+      ...options,
+      includeHost: options.includeHost || new URL(targetPage.url()).hostname,
+    });
+
+    // Lọc ra các liên kết mới (chưa được truy cập)
+    const newLinks = links.filter(link => !visitedLinks.has(link));
+
+    console.log(`✅ Thu thập được ${newLinks.length} liên kết mới từ ${targetPage.url()}`);
+    return { page: targetPage, newLinks };
+  } catch (e) {
+    console.log('⚠ Lỗi khi click và crawl liên kết:', e?.message || e);
+    return { page, newLinks: [] };
+  }
+}
+
+/**
+ * Crawl liên kết đệ quy, chỉ click vào các liên kết mới.
+ * @param {import('playwright').Page} page - Trang Playwright hiện tại
+ * @param {string} startUrl - URL bắt đầu
+ * @param {Object} options - Tùy chọn cho getInternalLinks
+ * @param {number} timeout - Thời gian chờ
+ * @param {number} maxDepth - Độ sâu tối đa của việc crawl
+ * @returns {Promise<string[]>} - Danh sách tất cả các liên kết đã truy cập
+ */
+async function recursiveCrawlNewLinks(page, startUrl, options = {}, timeout = 15000, maxDepth = 5) {
+  const visitedLinks = new Set();
+  const queue = [startUrl];
+
+  while (queue.length > 0 && visitedLinks.size < maxDepth) {
+    const url = queue.shift();
+    if (visitedLinks.has(url)) continue;
+
+    console.log(`👉 Đang xử lý: ${url}`);
+    const { page: targetPage, newLinks } = await clickAndCrawlNewLinks(page, url, visitedLinks, [], options, timeout, maxDepth);
+
+    // Thêm các liên kết mới vào hàng đợi
+    for (const link of newLinks) {
+      if (!visitedLinks.has(link)) {
+        queue.push(link);
+      }
+    }
+
+    // Delay ngẫu nhiên để mô phỏng hành vi người dùng
+    await sleep(targetPage, randomDelayMs(1, 3));
+    page = targetPage; // Cập nhật trang hiện tại
+  }
+
+  console.log(`✅ Hoàn tất crawl, tổng cộng ${visitedLinks.size} liên kết đã truy cập.`);
+  return [...visitedLinks];
+}
+
 module.exports = {
   safeGetHrefs,
   safeClick,
@@ -298,4 +388,6 @@ module.exports = {
   getOrganicResultLocator,
   getNextButtonLocator,
   humanize,
+  clickAndCrawlNewLinks,
+  recursiveCrawlNewLinks,
 };

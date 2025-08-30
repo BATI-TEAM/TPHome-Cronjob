@@ -25,42 +25,57 @@ async function handleTphomevnPage(activePage, startUrl) {
   console.log(`✅ Đang ở: ${activePage.url()}`);
 
   console.log('⏳ Đợi 20s trong trang tphomevn...');
-  await activePage.waitForTimeout(20000);
+  await H.sleep(activePage, 20000);
 
-  let internalLinks = [];
+  // Theo dõi các liên kết đã truy cập
+  const visitedLinks = new Set([startUrl]);
+  let currentPage = activePage;
+  const maxClicks = 3 + Math.floor(Math.random() * 2); // Click ngẫu nhiên 3-5 liên kết
+
   try {
-    internalLinks = await H.getInternalTphomevnLinks(activePage, startUrl);
+    // Thu thập các liên kết nội bộ từ trang hiện tại
+    const internalLinks = await H.getInternalTphomevnLinks(currentPage, 'https://tphomevn.com');
+    // Lọc ra các liên kết mới (chưa truy cập)
+    const newLinks = internalLinks.filter(link => !visitedLinks.has(link));
+
+    if (newLinks.length > 0) {
+      console.log(`🎯 Sẽ click ${maxClicks} link ngẫu nhiên trong site`);
+
+      for (let i = 0; i < maxClicks && newLinks.length > 0; i++) {
+        try {
+          // Chọn ngẫu nhiên một liên kết mới
+          const randomIndex = Math.floor(Math.random() * newLinks.length);
+          const chosenLink = newLinks[randomIndex];
+          visitedLinks.add(chosenLink);
+          newLinks.splice(randomIndex, 1); // Xóa liên kết đã chọn để tránh lặp
+
+          console.log(`🔗 Click ${i + 1}/${maxClicks} (ngẫu nhiên): ${chosenLink}`);
+          currentPage = await H.clickLinkByUrl(currentPage, chosenLink, [], 15000);
+          console.log(`🌍 Đã vào: ${currentPage.url()}`);
+
+          // Delay ngẫu nhiên để mô phỏng hành vi người dùng
+          const delay = 15000 + Math.floor(Math.random() * 5000);
+          console.log(`⏳ Đợi ${Math.round(delay / 1000)}s trong trang con...`);
+          await H.sleep(currentPage, delay);
+          await H.humanize(currentPage);
+        } catch (err) {
+          console.error(`⚠ Lỗi khi click liên kết ${i + 1}:`, err.message);
+          continue;
+        }
+      }
+    } else {
+      console.log('⚠ Không tìm thấy link nội bộ hợp lệ sau khi lọc.');
+    }
   } catch (err) {
     console.error('⚠ Lỗi khi lấy internal links:', err.message);
   }
 
-  if (internalLinks.length > 0) {
-    const clickCount = 3 + Math.floor(Math.random() * 2);
-    console.log(`🎯 Sẽ click ${clickCount} link ngẫu nhiên trong site`);
+  console.log(`✅ Đã hoàn tất crawl, tổng cộng ${visitedLinks.size} liên kết đã truy cập:`);
+  visitedLinks.forEach((lk, index) => {
+    console.log(`  ${index + 1}. ${lk}`);
+  });
 
-    for (let i = 0; i < clickCount && internalLinks.length > 0; i++) {
-      const randomIndex = Math.floor(Math.random() * internalLinks.length);
-      const chosen = internalLinks.splice(randomIndex, 1)[0];
-
-      console.log(`🔗 Click ${i + 1}/${clickCount}: ${chosen}`);
-      try {
-        const afterClickPage = await H.clickLinkByUrl(activePage, chosen, internalLinks);
-        console.log(`🌍 Đã vào: ${afterClickPage.url()}`);
-
-        const delay = 15000 + Math.floor(Math.random() * 5000);
-        console.log(`⏳ Đợi ${Math.round(delay / 1000)}s trong trang con...`);
-        await afterClickPage.waitForTimeout(delay);
-
-        activePage = afterClickPage;
-      } catch (err) {
-        console.error(`⚠ Lỗi khi click link ${chosen}:`, err.message);
-      }
-    }
-  } else {
-    console.log('⚠ Không tìm thấy link nội bộ hợp lệ sau filter.');
-  }
-
-  return activePage;
+  return currentPage;
 }
 
 async function runGoogleSearchAndNavigate() {
@@ -84,7 +99,8 @@ async function runGoogleSearchAndNavigate() {
     let page = await context.newPage();
 
     let keywordIndex = 0;
-    let maxAttemptsPerKeyword = 3; // Giới hạn số lần thử lại cho mỗi từ khóa
+    let backoff = 30000; // 30s khi bị block
+    const maxAttemptsPerKeyword = 3; // Giới hạn số lần thử lại cho mỗi từ khóa
 
     while (true) {
       const keyword = keywords[keywordIndex];
@@ -95,7 +111,13 @@ async function runGoogleSearchAndNavigate() {
 
       while (attempt < maxAttemptsPerKeyword && !found) {
         try {
+          // Điều hướng tới Google
           await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+          // Xử lý Google Consent nếu có
+          await H.handleGoogleConsent(page).catch(() => {});
+
+          // Điền ô tìm kiếm
           const filled = await H.fillGoogleSearchBox(page, keyword);
           if (!filled) {
             console.log('⚠ Không điền được ô tìm kiếm. Thử lại.');
@@ -104,14 +126,20 @@ async function runGoogleSearchAndNavigate() {
             continue;
           }
 
+          // Gửi tìm kiếm
           await Promise.all([
             page.keyboard.press('Enter'),
             page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {})
           ]);
 
+          // Mô phỏng hành vi người dùng
+          await H.humanize(page);
+
+          // Kiểm tra chặn của Google
           if (await H.checkGoogleBlock(page)) {
-            console.log('🚨 Google block (captcha / sorry page) -> đợi 30s rồi thử lại...');
-            await page.waitForTimeout(30000);
+            console.log(`🚨 Google block (captcha / sorry page) -> đợi ${backoff / 1000}s rồi thử lại...`);
+            backoff = Math.min(backoff * 2, 120000); // Exponential backoff, max 2 phút
+            await page.waitForTimeout(backoff);
             attempt++;
             continue;
           }
@@ -129,10 +157,10 @@ async function runGoogleSearchAndNavigate() {
               const href = await resultLinks[i].getAttribute('href').catch(() => null);
               if (href && href.includes('tphomevn.com')) {
                 const position = i + 1 + (pageNumber - 1) * 10;
-                console.log(`Tìm thấy từ khóa: "${keyword}" của tphomevn.com ở vị trí thứ ${position} (trang ${pageNumber})`);
+                console.log(`🎉 Tìm thấy từ khóa: "${keyword}" của tphomevn.com ở vị trí thứ ${position} (trang ${pageNumber})`);
                 const { page: sitePage, isPopup } = await H.safeClick(page, resultLinks[i], 15000);
                 console.log(`👉 Đã mở kết quả: ${sitePage.url()}`);
-                await handleTphomevnPage(sitePage, sitePage.url());
+                page = await handleTphomevnPage(sitePage, sitePage.url());
 
                 if (isPopup) await sitePage.close().catch(() => {});
                 found = true;
@@ -141,8 +169,8 @@ async function runGoogleSearchAndNavigate() {
             }
 
             if (!found) {
-              const nextBtn = await page.$('#pnnext, a[aria-label="Next"], a[aria-label="Trang tiếp theo"]');
-              if (nextBtn) {
+              const nextBtn = H.getNextButtonLocator(page);
+              if (await nextBtn.count()) {
                 console.log('👉 Sang trang kết quả kế tiếp...');
                 pageNumber++;
                 await Promise.all([
@@ -150,31 +178,35 @@ async function runGoogleSearchAndNavigate() {
                   page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
                 ]);
                 await page.waitForTimeout(2000);
+                await H.humanize(page);
 
                 if (await H.checkGoogleBlock(page)) {
-                  console.log('🚨 Google block (captcha / sorry page) -> đợi 30s rồi thử lại...');
-                  await page.waitForTimeout(30000);
+                  console.log(`🚨 Google block (captcha / sorry page) -> đợi ${backoff / 1000}s rồi thử lại...`);
+                  backoff = Math.min(backoff * 2, 120000);
+                  await page.waitForTimeout(backoff);
                   break;
                 }
               } else {
-                console.log(`⚠️ Hết trang tìm kiếm (đã kiểm tra ${pageNumber} trang) mà không thấy tphomevn.com.`);
+                console.log(`⚠️ Hết trang tìm kiếmtre tìm kiếm (đã kiểm tra ${pageNumber} trang) mà không thấy tphomevn.com.`);
                 break;
               }
             }
           }
+
+          if (!found) {
+            console.log(`⚠ Không tìm thấy tphomevn.com cho từ khóa "${keyword}" sau ${maxAttemptsPerKeyword} lần thử.`);
+          }
         } catch (err) {
           console.error(`⚠ Lỗi khi xử lý từ khóa "${keyword}" (lần ${attempt + 1}):`, err.message);
           attempt++;
+          backoff = Math.min(backoff * 2, 120000); // Tăng thời gian chờ nếu lỗi
           await page.waitForTimeout(5000);
         }
       }
 
-      if (!found) {
-        console.log(`⚠ Không tìm thấy tphomevn.com cho từ khóa "${keyword}" sau ${maxAttemptsPerKeyword} lần thử.`);
-      }
-
       keywordIndex = (keywordIndex + 1) % keywords.length;
       console.log('🔄 Chuyển sang từ khóa tiếp theo...');
+      backoff = 30000; // Đặt lại backoff cho từ khóa tiếp theo
       await page.waitForTimeout(2000);
     }
   } catch (err) {

@@ -42,43 +42,53 @@ async function handleTphomevnPage(activePage, startUrl) {
   }
   console.log(`✅ Đang ở: ${activePage.url()}`);
 
+  // Đợi một khoảng thời gian để mô phỏng hành vi người dùng
   console.log('⏳ Đợi 20s trong trang tphomevn...');
-  await activePage.waitForTimeout(20000);
+  await H.sleep(activePage, 20000);
 
-  let internalLinks = [];
-  try {
-    internalLinks = await H.getInternalTphomevnLinks(activePage, startUrl);
-  } catch (err) {
-    console.error('⚠ Lỗi khi lấy internal links:', err.message);
-  }
+  // Theo dõi các liên kết đã truy cập
+  const visitedLinks = new Set([startUrl]);
+  let currentPage = activePage;
+  const maxClicks = 3 + Math.floor(Math.random() * 2); // Click ngẫu nhiên 3-5 liên kết
 
-  if (internalLinks.length > 0) {
-    const clickCount = 3 + Math.floor(Math.random() * 2);
-    console.log(`🎯 Sẽ click ${clickCount} link ngẫu nhiên trong site`);
+  for (let i = 0; i < maxClicks; i++) {
+    try {
+      // Thu thập các liên kết nội bộ từ trang hiện tại
+      const internalLinks = await H.getInternalTphomevnLinks(currentPage, 'https://tphomevn.com');
+      // Lọc ra các liên kết mới (chưa truy cập)
+      const newLinks = internalLinks.filter(link => !visitedLinks.has(link));
 
-    for (let i = 0; i < clickCount && internalLinks.length > 0; i++) {
-      const randomIndex = Math.floor(Math.random() * internalLinks.length);
-      const chosen = internalLinks.splice(randomIndex, 1)[0];
-
-      console.log(`🔗 Click ${i + 1}/${clickCount}: ${chosen}`);
-      try {
-        const afterClickPage = await H.clickLinkByUrl(activePage, chosen, internalLinks);
-        console.log(`🌍 Đã vào: ${afterClickPage.url()}`);
-
-        const delay = 15000 + Math.floor(Math.random() * 5000);
-        console.log(`⏳ Đợi ${Math.round(delay / 1000)}s trong trang con...`);
-        await afterClickPage.waitForTimeout(delay);
-
-        activePage = afterClickPage;
-      } catch (err) {
-        console.error(`⚠ Lỗi khi click link ${chosen}:`, err.message);
+      if (newLinks.length === 0) {
+        console.log('⚠ Không còn liên kết mới để click.');
+        break;
       }
+
+      // Chọn ngẫu nhiên một liên kết mới
+      const randomIndex = Math.floor(Math.random() * newLinks.length);
+      const chosenLink = newLinks[randomIndex];
+      visitedLinks.add(chosenLink);
+
+      console.log(`🔗 Click ${i + 1}/${maxClicks} (ngẫu nhiên): ${chosenLink}`);
+      currentPage = await H.clickLinkByUrl(currentPage, chosenLink, [], 15000);
+      console.log(`🌍 Đã vào: ${currentPage.url()}`);
+
+      // Delay ngẫu nhiên để mô phỏng hành vi người dùng
+      const delay = 15000 + Math.floor(Math.random() * 5000);
+      console.log(`⏳ Đợi ${Math.round(delay / 1000)}s trong trang con...`);
+      await H.sleep(currentPage, delay);
+      await H.humanize(currentPage);
+    } catch (err) {
+      console.error(`⚠ Lỗi khi click liên kết ${i + 1}:`, err.message);
+      continue;
     }
-  } else {
-    console.log('⚠ Không tìm thấy link nội bộ hợp lệ sau filter.');
   }
 
-  return activePage;
+  console.log(`✅ Đã hoàn tất crawl, tổng cộng ${visitedLinks.size} liên kết đã truy cập:`);
+  visitedLinks.forEach((link, index) => {
+    console.log(`  ${index + 1}. ${link}`);
+  });
+
+  return currentPage;
 }
 
 async function runGoogleSearchAndNavigate() {
@@ -99,7 +109,7 @@ async function runGoogleSearchAndNavigate() {
       ignoreHTTPSErrors: true,
       userAgent: H.getRandomUserAgent ? H.getRandomUserAgent() : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'
     });
-    const page = await context.newPage();
+    let page = await context.newPage();
 
     let keywordIndex = 0;
     let backoff = 30000; // 30s khi bị block
@@ -114,10 +124,31 @@ async function runGoogleSearchAndNavigate() {
 
       while (attempt < maxAttemptsPerKeyword && !found) {
         try {
-          await page.goto(H.googleSearchUrl(keyword, { hl: 'vi', gl: 'VN', num: 10 }), { waitUntil: 'domcontentloaded', timeout: 30000 });
-          await H.handleGoogleConsent(page).catch(() => { });
+          // Điều hướng tới Google
+          await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+          // Xử lý Google Consent nếu có
+          await H.handleGoogleConsent(page).catch(() => {});
+
+          // Điền ô tìm kiếm
+          const filled = await H.fillGoogleSearchBox(page, keyword);
+          if (!filled) {
+            console.log('⚠ Không điền được ô tìm kiếm. Thử lại.');
+            attempt++;
+            await page.waitForTimeout(5000);
+            continue;
+          }
+
+          // Gửi tìm kiếm
+          await Promise.all([
+            page.keyboard.press('Enter'),
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
+          ]);
+
+          // Mô phỏng hành vi người dùng
           await H.humanize(page);
 
+          // Kiểm tra chặn của Google
           if (await H.isGoogleBlocked(page)) {
             console.log(`🚨 Google block -> đợi ${backoff / 1000}s rồi thử lại...`);
             backoff = Math.min(backoff * 2, 120000); // Exponential backoff, max 2 phút
@@ -131,7 +162,7 @@ async function runGoogleSearchAndNavigate() {
 
           while (!found) {
             // Chờ kết quả tìm kiếm tải
-            await page.waitForSelector('div#search', { timeout: 10000 }).catch(() => { });
+            await page.waitForSelector('div#search', { timeout: 10000 }).catch(() => {});
             const resultLinks = await page
               .locator('div#search a:has(h3):not([href*="aclk"]):not([href*="googleadservices"])')
               .all();
@@ -144,9 +175,9 @@ async function runGoogleSearchAndNavigate() {
                 console.log(`🎉 Tìm thấy từ khóa: "${keyword}" của tphomevn.com ở vị trí thứ ${position} (trang ${pageNumber})`);
                 const { page: sitePage, isPopup } = await H.safeClick(page, resultLinks[i], 15000);
                 console.log(`👉 Đã mở kết quả: ${sitePage.url()}`);
-                await handleTphomevnPage(sitePage, sitePage.url());
+                page = await handleTphomevnPage(sitePage, sitePage.url()); // Cập nhật page
 
-                if (isPopup) await sitePage.close().catch(() => { });
+                if (isPopup) await sitePage.close().catch(() => {});
                 found = true;
                 break;
               }
@@ -159,7 +190,7 @@ async function runGoogleSearchAndNavigate() {
                 pageNumber++;
                 await Promise.all([
                   nextBtn.click(),
-                  page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => { })
+                  page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {})
                 ]);
                 await page.waitForTimeout(2000);
                 await H.humanize(page);
@@ -196,7 +227,7 @@ async function runGoogleSearchAndNavigate() {
   } catch (err) {
     console.error('💥 Lỗi nghiêm trọng (ngoài vòng):', err);
   } finally {
-    if (browser) await browser.close().catch(() => { });
+    if (browser) await browser.close().catch(() => {});
     isRunning = false;
   }
 }
