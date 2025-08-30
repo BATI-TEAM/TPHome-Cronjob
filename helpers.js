@@ -1,6 +1,3 @@
-// Helpers dùng chung cho các script Playwright
-// Ngôn ngữ: Vietnamese comments
-
 /**
  * Lấy toàn bộ hrefs theo selector một cách an toàn, có retry và giải mã redirect của Google.
  * @param {import('playwright').Page} page
@@ -123,24 +120,52 @@ async function clickLinkByUrl(page, url, candidates = [], timeout = 15000) {
 }
 
 /**
- * Lấy toàn bộ link nội bộ theo host hiện tại, lọc bỏ mailto/tel/social và loại baseUrl nếu truyền vào.
+ * Lấy toàn bộ link nội bộ theo host hiện tại, lọc bỏ mailto/tel/social/hình ảnh/bình luận/tài khoản và loại baseUrl nếu truyền vào.
  * @param {import('playwright').Page} page
- * @param {{ baseUrl?: string, includeHost?: string, excludeHosts?: string[] }} options
+ * @param {{ baseUrl?: string, includeHost?: string, excludeHosts?: string[], excludePaths?: string[], excludeExtensions?: string[] }} options
  * @returns {Promise<string[]>}
  */
 async function getInternalLinks(page, options = {}) {
-  const { baseUrl, includeHost, excludeHosts = ['facebook.com', 'instagram.com', 'whatsapp:'] } = options;
+  const {
+    baseUrl,
+    includeHost,
+    excludeHosts = [
+      'facebook.com',
+      'instagram.com',
+      'whatsapp://',
+      'twitter.com',
+      'pinterest.com',
+      'linkedin.com'
+    ],
+    excludePaths = ['#respond', 'lost-password', 'wp-content/uploads'],
+    excludeExtensions = ['.jpg', '.png', '.jpeg', '.gif', '.pdf']
+  } = options;
   const allHrefs = await safeGetHrefs(page, 'a[href]').catch(() => []);
   const result = [];
   const host = includeHost || (() => { try { return new URL(page.url()).hostname; } catch { return ''; } })();
 
   for (let href of allHrefs) {
     if (!href) continue;
+
+    // Bỏ các liên kết chứa ký tự không hợp lệ
+    if (href.includes('\n') || !href.match(/^https?:\/\//)) continue;
+
+    // Chuẩn hóa liên kết tương đối
     if (href.startsWith('/')) {
-      try { href = new URL(href, page.url()).href; } catch {}
+      try { href = new URL(href, page.url()).href; } catch { continue; }
     }
-    const isExcluded = href.startsWith('mailto:') || href.startsWith('tel:') || excludeHosts.some(x => href.includes(x));
+
+    // Kiểm tra các điều kiện loại trừ
+    const isExcluded = 
+      href.startsWith('mailto:') ||
+      href.startsWith('tel:') ||
+      excludeHosts.some(x => href.includes(x)) ||
+      excludePaths.some(p => href.includes(p)) ||
+      excludeExtensions.some(ext => href.toLowerCase().endsWith(ext));
+
     if (isExcluded) continue;
+
+    // Chỉ giữ liên kết thuộc host và không phải baseUrl
     if (host && href.includes(host) && href !== baseUrl) {
       result.push(href);
     }
@@ -198,7 +223,6 @@ async function fillGoogleSearchBox(page, query) {
   }
 }
 
-// --- Google handling helpers ---
 /**
  * Xử lý màn hình consent/cookies của Google nếu xuất hiện.
  * @param {import('playwright').Page} page
