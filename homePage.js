@@ -62,8 +62,8 @@ async function crawlTphomevnTask() {
   }
 }
 
-// Giả lập cron job 30 phút
-setInterval(crawlTphomevnTask, 30 * 60 * 1000);
+// Giả lập cron job 10 phút
+setInterval(crawlTphomevnTask, 10 * 60 * 1000);
 
 // Chạy ngay lần đầu
 crawlTphomevnTask();
